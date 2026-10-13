@@ -5,6 +5,7 @@
  */
 
 #include <drm/android/gralloc_handle.h>
+#include <hardware/gralloc.h>
 #include <system/graphics.h>
 #include <BufferAllocator/BufferAllocator.h>
 
@@ -88,8 +89,18 @@ ndk::ScopedAStatus AllocatorBackendDmaBuf::isSupported(const BufferDescriptorInf
 {
 	LOG_TRACE();
 
-	// We currently ONLY support Linear BLOB
 	if (descriptor.format == PixelFormat::BLOB && descriptor.height == 1) {
+		*outResult = true;
+		return ndk::ScopedAStatus::ok();
+	}
+
+	uint32_t usage = static_cast<uint32_t>(descriptor.usage);
+	if (usage & (GRALLOC_USAGE_HW_VIDEO_ENCODER | GRALLOC_USAGE_HW_IMAGE_ENCODER)) {
+		*outResult = true;
+		return ndk::ScopedAStatus::ok();
+	}
+
+	if (usage & (GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN)) {
 		*outResult = true;
 		return ndk::ScopedAStatus::ok();
 	}

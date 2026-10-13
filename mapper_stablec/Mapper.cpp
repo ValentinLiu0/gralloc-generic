@@ -158,15 +158,33 @@ std::shared_ptr<MapperBackendImpl> GrallocGenericMapperV5::selectBackendByType(c
 	return backend;
 }
 
+inline bool shouldUseDrmBackend(buffer_handle_t _Nonnull buffer)
+{
+	gralloc_handle_t *handle = gralloc_handle(buffer);
+	assert(handle);
+
+	/*
+	 * Linear buffers (1D) should use DMA-BUF.
+	 */
+	if (handle->format == HAL_PIXEL_FORMAT_BLOB && handle->height == 1)
+		return true;
+
+	/*
+	 * We currently allocate DMA-BUF buffers for encoders.
+	 */
+	if (handle->usage & (GRALLOC_USAGE_HW_VIDEO_ENCODER | GRALLOC_USAGE_HW_IMAGE_ENCODER))
+		return true;
+
+	return false;
+}
+
 int GrallocGenericMapperV5::selectBackend(buffer_handle_t _Nonnull buffer)
 {
 	LOG_TRACE();
 
 	std::shared_ptr<MapperBackendImpl> backend;
-	gralloc_handle_t *handle = gralloc_handle(buffer);
-	assert(handle);
 
-	if (handle->format == HAL_PIXEL_FORMAT_BLOB && handle->height == 1)  {
+	if (shouldUseDrmBackend(buffer)) {
 		LOG_D("Selected DMA-BUF backend.");
 		backend = selectBackendByType(MapperBackendType::MAPPER_GRALLOC_DMABUF);
 	} else {
