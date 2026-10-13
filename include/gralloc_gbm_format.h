@@ -12,6 +12,8 @@
 #include <stdlib.h>
 #include <system/graphics.h>
 
+#include <vendor_rockchip.h>
+
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
 #define ALIGN(A, B) (((A) + (B)-1) & ~((B)-1))
 #define IS_ALIGNED(A, B) (ALIGN((A), (B)) == (A))
@@ -43,6 +45,8 @@ static const color_fmt_t color_format_map[] = {
 	{ HAL_PIXEL_FORMAT_YCBCR_422_SP, "HAL_PIXEL_FORMAT_YCBCR_422_SP", GBM_FORMAT_YUV422, "GBM_FORMAT_YUV422" },
 	{ HAL_PIXEL_FORMAT_YCRCB_420_SP, "HAL_PIXEL_FORMAT_YCRCB_420_SP", GBM_FORMAT_YVU420, "GBM_FORMAT_YVU420" },
 	{ HAL_PIXEL_FORMAT_YCBCR_422_I, "HAL_PIXEL_FORMAT_YCBCR_422_I", GBM_FORMAT_VYUY, "GBM_FORMAT_VYUY" },
+	{ HAL_PIXEL_FORMAT_YCBCR_P010, "HAL_PIXEL_FORMAT_YCBCR_P010", GBM_FORMAT_NV12, "GBM_FORMAT_NV12" },
+	{ HAL_PIXEL_FORMAT_YCrCb_NV12, "HAL_PIXEL_FORMAT_YCrCb_NV12", GBM_FORMAT_NV12, "GBM_FORMAT_NV12" }, // Rockchip
 #define GBM_FORMAT_EXT_YUV420_FLEXIBLE __gbm_fourcc_code('9', '4', '2', '0')
 	{ HAL_PIXEL_FORMAT_YCBCR_420_888, "HAL_PIXEL_FORMAT_YCBCR_420_888", GBM_FORMAT_YUV420, "GBM_FORMAT_YUV420" },
 	{ HAL_PIXEL_FORMAT_RGBA_1010102, "HAL_PIXEL_FORMAT_RGBA_1010102", GBM_FORMAT_ABGR2101010, "GBM_FORMAT_ABGR2101010" },
@@ -122,12 +126,14 @@ static const color_bpp_t color_bpp_map[] = {
 	{ /* GBM_FORMAT_YUV422 */ color_format_map[5].gbm_format, 16 },
 	{ /* GBM_FORMAT_YVU420 */ color_format_map[6].gbm_format, 12 },
 	{ /* GBM_FORMAT_VYUY */ color_format_map[7].gbm_format, 32 },
-	{ /* GBM_FORMAT_YUV420 */ color_format_map[8].gbm_format, 12 },
-	{ /* GBM_FORMAT_ABGR2101010 */ color_format_map[9].gbm_format, 32 },
-	{ /* GBM_FORMAT_R8 */ color_format_map[10].gbm_format, 8 },
-	{ /* GBM_FORMAT_R16 */ color_format_map[11].gbm_format, 16 },
-	{ /* GBM_FORMAT_GR88 */ color_format_map[12].gbm_format, 16 },
-	{ /* GBM_FORMAT_ABGR16161616F */ color_format_map[13].gbm_format, 64 },
+	{ /* GBM_FORMAT_NV12 */ color_format_map[8].gbm_format, 12 },
+	{ /* GBM_FORMAT_NV12 */ color_format_map[9].gbm_format, 12 },
+	{ /* GBM_FORMAT_YUV420 */ color_format_map[10].gbm_format, 12 },
+	{ /* GBM_FORMAT_ABGR2101010 */ color_format_map[11].gbm_format, 32 },
+	{ /* GBM_FORMAT_R8 */ color_format_map[12].gbm_format, 8 },
+	{ /* GBM_FORMAT_R16 */ color_format_map[13].gbm_format, 16 },
+	{ /* GBM_FORMAT_GR88 */ color_format_map[14].gbm_format, 16 },
+	{ /* GBM_FORMAT_ABGR16161616F */ color_format_map[15].gbm_format, 64 },
 	{ /* additional */ GBM_FORMAT_RGB565, 16 },
 	{ /* additional */ GBM_FORMAT_NV12, 8 },
 	{ /* additional */ GBM_FORMAT_NV21, 16 },
