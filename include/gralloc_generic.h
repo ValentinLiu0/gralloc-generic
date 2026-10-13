@@ -1,3 +1,9 @@
+/*
+ * SPDX-FileCopyrightText: Copyright 2026 Valentin Liu (LIU, YUANCHEN) <valentinliu@icloud.com>
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #ifndef GRALLOC_GENERIC_H
 #define GRALLOC_GENERIC_H
 
