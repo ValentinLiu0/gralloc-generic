@@ -9,6 +9,8 @@
 #include <system/graphics.h>
 #include <BufferAllocator/BufferAllocator.h>
 
+#include <gralloc_gbm_format.h>
+
 #define LOG_TAG "AllocatorDmaBuf"
 #include <private/log.h>
 
@@ -51,6 +53,12 @@ ndk::ScopedAStatus AllocatorBackendDmaBuf::allocate2(const BufferDescriptorInfo&
 	std::vector<native_handle_t *> handles;
 	handles.resize(count, nullptr);
     
+	uint32_t drm_format = color_fmt_a2g(static_cast<uint32_t>(descriptor.format));
+	if (!drm_format)
+		LOG_W("Unsupported or unknown Android HAL format %u!", descriptor.format);
+
+	uint32_t pitch_bytes = descriptor.width * color_bytes_per_pixel(drm_format);
+
 	for (int i = 0; i < count; i++) {
 		native_handle_t *handle = gralloc_handle_create(descriptor.width, descriptor.height,
 								static_cast<int32_t>(descriptor.format),
@@ -61,7 +69,7 @@ ndk::ScopedAStatus AllocatorBackendDmaBuf::allocate2(const BufferDescriptorInfo&
 			return ToBinderStatus(AllocationError::NO_RESOURCES);
 		}
 		gralloc_handle(handle)->prime_fd = fd;
-		gralloc_handle(handle)->stride = descriptor.width / (1 * 8); // 1 Byte (8 bits) per pixel
+		gralloc_handle(handle)->stride = pitch_bytes;
 		handles[i] = handle;
 	}
 
@@ -80,7 +88,7 @@ ndk::ScopedAStatus AllocatorBackendDmaBuf::allocate2(const BufferDescriptorInfo&
 		native_handle_close(handle);
 		native_handle_delete(handle);
 	}
-	outResult->stride = descriptor.width / 8;
+	outResult->stride = pitch_bytes / color_bytes_per_pixel(drm_format);;
 
 	return ndk::ScopedAStatus::ok();
 }

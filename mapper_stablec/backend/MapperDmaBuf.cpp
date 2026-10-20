@@ -11,6 +11,8 @@
 #include <sys/mman.h>
 #include <BufferAllocator/BufferAllocator.h>
 
+#include <gralloc_gbm_format.h>
+
 #define LOG_TAG "MapperDmaBuf"
 #include <private/log.h>
 
@@ -24,8 +26,10 @@ typedef struct dma_buffer_info {
 	int32_t width;
 	int32_t height;
 	int32_t format;
+	int32_t android_format;
 	int64_t usage;
 	uint32_t stride;
+	uint32_t android_stride;
 	size_t size;
 	void *mapped;
 
@@ -40,12 +44,12 @@ bool MapperBackendDmaBuf::isReady() const
 	LOG_TRACE();
 
 	if (allocator == nullptr) {
-		LOG_D("No available DMA allocator, is it initialized?");
+		LOG_D("No available DMA-BUF allocator, is it initialized?");
 		return false;
 	}
 
 	if (allocator->GetDmabufHeapList().empty()) {
-		LOG_D("No available DMA heap.");
+		LOG_D("No available DMA-BUF heaps.");
 		return false;
 	}
 
@@ -67,9 +71,11 @@ inline buffer_info_t *buffer_info_create(const gralloc_handle_t *handle)
 	bi->buffer_id = (void *) handle;
 	bi->width = handle->width;
 	bi->height = handle->height;
-	bi->format = handle->format;
+	bi->format = color_fmt_a2g(handle->format);
+	bi->android_format = handle->format;
 	bi->usage = handle->usage;
 	bi->stride = handle->stride;
+	bi->android_stride = handle->stride / color_bytes_per_pixel(bi->format);
 	bi->size = (bi->width * bi->height);
 	
 	if (handle->usage & GRALLOC_USAGE_PROTECTED)
@@ -274,10 +280,10 @@ int32_t queryAndroidBufferMetadata(buffer_handle_t handle, F&& provide,
 		return provide(static_cast<int32_t>(1));
 	}
 	if constexpr (metadataType == StandardMetadataType::PIXEL_FORMAT_REQUESTED) {
-		return provide(static_cast<PixelFormat>(info->format));
+		return provide(static_cast<PixelFormat>(info->android_format));
 	}
 	if constexpr (metadataType == StandardMetadataType::PIXEL_FORMAT_FOURCC) {
-		return provide(static_cast<uint32_t>(DRM_FORMAT_R8));
+		return provide(static_cast<uint32_t>(info->format));
 	}
 	if constexpr (metadataType == StandardMetadataType::USAGE) {
 		return provide(static_cast<BufferUsage>(info->usage));
@@ -311,7 +317,7 @@ int32_t queryAndroidBufferMetadata(buffer_handle_t handle, F&& provide,
 		return provide(crops);
 	}
 	if constexpr (metadataType == StandardMetadataType::STRIDE) {
-		return provide(static_cast<int32_t>(info->stride));
+		return provide(static_cast<int32_t>(info->android_stride));
 	}
 
 	LOG_W("Unknown or unsupported metadata type: %s", toString(metadataType).c_str());
