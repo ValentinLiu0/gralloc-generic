@@ -27,12 +27,12 @@
 #define LOG_TRACE()
 #endif /* NO_TRACE */
 
-#define LOG_V(fmt, ...) __android_log_print(ANDROID_LOG_VERBOSE, LOG_TAG, "[V] %s: " fmt, __func__, ##__VA_ARGS__)
-#define LOG_D(fmt, ...) __android_log_print(ANDROID_LOG_DEBUG,   LOG_TAG, "[D] %s: " fmt, __func__, ##__VA_ARGS__)
-#define LOG_I(fmt, ...) __android_log_print(ANDROID_LOG_INFO,    LOG_TAG, "[I] %s: " fmt, __func__, ##__VA_ARGS__)
-#define LOG_W(fmt, ...) __android_log_print(ANDROID_LOG_WARN,    LOG_TAG, "[W] %s: " fmt, __func__, ##__VA_ARGS__)
-#define LOG_E(fmt, ...) __android_log_print(ANDROID_LOG_ERROR,   LOG_TAG, "[E] %s: " fmt, __func__, ##__VA_ARGS__)
-#define LOG_F(fmt, ...) __android_log_print(ANDROID_LOG_FATAL,   LOG_TAG, "[F] %s: " fmt, __func__, ##__VA_ARGS__)
+#define LOG_V(fmt, ...) __android_log_print(ANDROID_LOG_VERBOSE, LOG_TAG, "[V] %s@%s[:%d]: " fmt, __func__, __FILE_NAME__, __LINE__, ##__VA_ARGS__)
+#define LOG_D(fmt, ...) __android_log_print(ANDROID_LOG_DEBUG,   LOG_TAG, "[D] %s@%s[:%d]: " fmt, __func__, __FILE_NAME__, __LINE__, ##__VA_ARGS__)
+#define LOG_I(fmt, ...) __android_log_print(ANDROID_LOG_INFO,    LOG_TAG, "[I] %s@%s[:%d]: " fmt, __func__, __FILE_NAME__, __LINE__, ##__VA_ARGS__)
+#define LOG_W(fmt, ...) __android_log_print(ANDROID_LOG_WARN,    LOG_TAG, "[W] %s@%s[:%d]: " fmt, __func__, __FILE_NAME__, __LINE__, ##__VA_ARGS__)
+#define LOG_E(fmt, ...) __android_log_print(ANDROID_LOG_ERROR,   LOG_TAG, "[E] %s@%s[:%d]: " fmt, __func__, __FILE_NAME__, __LINE__, ##__VA_ARGS__)
+#define LOG_F(fmt, ...) __android_log_print(ANDROID_LOG_FATAL,   LOG_TAG, "[F] %s@%s[:%d]: " fmt, __func__, __FILE_NAME__, __LINE__, ##__VA_ARGS__)
 
 #define LOG_ASSERT(cond, ...) __android_log_assert(cond, LOG_TAG, __VA_ARGS__)
 
