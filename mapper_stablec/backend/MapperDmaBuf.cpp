@@ -16,7 +16,7 @@
 #include <gralloc_generic_format.h>
 
 #define LOG_TAG "MapperDmaBuf"
-#include <private/log.h>
+#include <log.h>
 
 #include "MapperDmaBuf.hpp"
 

@@ -7,7 +7,7 @@
 #include <aidl/android/hardware/graphics/common/StandardMetadataType.h>
 
 #define LOG_TAG "MapperGrallocGbm"
-#include <private/log.h>
+#include <log.h>
 
 #include "MapperGrallocGbm.hpp"
 #include "../MapperPlaneLayouts.hpp"

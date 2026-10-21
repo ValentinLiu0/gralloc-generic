@@ -18,7 +18,7 @@
 #include <gralloc_gbm.h>
 
 #define LOG_TAG "gralloc_gbm"
-#include <private/log.h>
+#include <log.h>
 
 /**
  * Hash table to store managed (allocated/imported) android buffer.

@@ -2,7 +2,7 @@ cc_library_headers {
     name: "gralloc_generic_headers",
     host_supported: true,
     vendor_available: true,
-    export_include_dirs: ["include"],
+    export_include_dirs: ["include/public"],
 }
 
 cc_library_shared {
@@ -26,6 +26,9 @@ cc_library_shared {
     static_libs: [
         "libarect",
         "libaidlcommonsupport",
+    ],
+    local_include_dirs: [
+        "include/private",
     ],
     srcs: [
         "common/gralloc_gbm.c",
@@ -88,6 +91,9 @@ cc_library_shared {
         "libarect",
         "libaidlcommonsupport",
     ],
+    local_include_dirs: [
+        "include/private",
+    ],
     srcs: [
         "mapper_stablec/backend/MapperDmaBuf.cpp",
         "mapper_stablec/backend/MapperGrallocGbm.cpp",
@@ -136,6 +142,9 @@ cc_binary {
     static_libs: [
         "libarect",
         "libaidlcommonsupport",
+    ],
+    local_include_dirs: [
+        "include/private",
     ],
     srcs: [
         "allocator/backend/AllocatorDmaBuf.cpp",

@@ -9,7 +9,7 @@
 #include <android/binder_process.h>
 
 #define LOG_TAG "GrallocGenericAllocator"
-#include <private/log.h>
+#include <log.h>
 
 #include "Allocator.h"
 

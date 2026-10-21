@@ -7,7 +7,7 @@
 #include <gralloc_gbm.h>
 
 #define LOG_TAG "AllocatorGrallocGbm"
-#include <private/log.h>
+#include <log.h>
 
 #include "AllocatorGrallocGbm.hpp"
 

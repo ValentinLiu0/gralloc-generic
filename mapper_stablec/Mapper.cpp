@@ -5,7 +5,7 @@
  */
 
 #define LOG_TAG "GrallocGenericMapperV5"
-#include <private/log.h>
+#include <log.h>
 
 #include <aidl/android/hardware/graphics/allocator/BufferDescriptorInfo.h>
 #include <aidl/android/hardware/graphics/common/BufferUsage.h>

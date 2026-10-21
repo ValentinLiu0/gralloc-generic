@@ -13,7 +13,7 @@
 #include "Allocator.h"
 
 #define LOG_TAG "GrallocGenericAllocatorV2"
-#include <private/log.h>
+#include <log.h>
 
 #define CHECK_BACKEND()	\
 	do {		\

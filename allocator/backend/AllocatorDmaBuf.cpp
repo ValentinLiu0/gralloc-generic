@@ -14,7 +14,7 @@
 #include <gralloc_generic_format.h>
 
 #define LOG_TAG "AllocatorDmaBuf"
-#include <private/log.h>
+#include <log.h>
 
 #include "AllocatorDmaBuf.hpp"
 
