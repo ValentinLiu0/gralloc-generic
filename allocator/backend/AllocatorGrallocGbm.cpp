@@ -91,11 +91,8 @@ ndk::ScopedAStatus AllocatorBackendGrallocGbm::isSupported(const BufferDescripto
 		return ndk::ScopedAStatus::ok();
 	}
 
-	/* Reject all software RW buffers */
-	if (static_cast<uint32_t>(descriptor.usage) & (GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN)) {
-		*outResult = false;
-		return ndk::ScopedAStatus::ok();
-	}	
+	// Do NOT reject all software RW buffers here.
+	// A dumb will be created for some supported formats.
 
 	allocator_desc_t grallocGbmDesc = {};
 	int status = generateGrallocGenericDesc(descriptor, &grallocGbmDesc);
