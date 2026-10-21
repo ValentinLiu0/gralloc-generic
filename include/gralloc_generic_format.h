@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef GRALLOC_GBM_FORMAT_H
-#define GRALLOC_GBM_FORMAT_H
+#ifndef GRALLOC_GENERIC_FORMAT_H
+#define GRALLOC_GENERIC_FORMAT_H
 
 #include <gbm.h>
 #include <linux/errno.h>
@@ -22,14 +22,13 @@
 extern "C" {
 #endif
 
-
-typedef struct gralloc_gbm_color_format {
+typedef struct gralloc_generic_color_format {
 	uint32_t android_format;
 	const char *android_name;
 	uint32_t gbm_format;
 	const char *gbm_name;
-} gralloc_gbm_color_format_t;
-typedef gralloc_gbm_color_format_t color_fmt_t;
+} gralloc_generic_color_format_t;
+typedef gralloc_generic_color_format_t color_fmt_t;
 
 /**
  * Android HAL color format is using Little-endian, but GBM color format is using Big-endian.
@@ -175,4 +174,4 @@ static inline uint32_t color_stride(const uint32_t gbm_format)
 }
 #endif
 
-#endif /* GRALLOC_GBM_FORMAT_H */
+#endif // GRALLOC_GENERIC_FORMAT_H

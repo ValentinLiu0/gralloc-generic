@@ -9,7 +9,7 @@
 
 #include <stdlib.h>
 
-#include <gralloc_gbm_format.h>
+#include <gralloc_generic_format.h>
 
 #include <gralloctypes/Gralloc4.h>
 

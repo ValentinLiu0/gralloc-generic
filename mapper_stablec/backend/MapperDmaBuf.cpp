@@ -11,7 +11,7 @@
 #include <sys/mman.h>
 #include <BufferAllocator/BufferAllocator.h>
 
-#include <gralloc_gbm_format.h>
+#include <gralloc_generic_format.h>
 
 #define LOG_TAG "MapperDmaBuf"
 #include <private/log.h>

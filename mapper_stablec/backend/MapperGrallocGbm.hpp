@@ -8,7 +8,7 @@
 #define MAPPER_GRALLOC_GBM_HPP
 
 #include <gralloc_gbm.h>
-#include <gralloc_gbm_format.h>
+#include <gralloc_generic_format.h>
 
 #include <android/hardware/graphics/mapper/IMapper.h>
 #include <android/hardware/graphics/mapper/utils/IMapperMetadataTypes.h>

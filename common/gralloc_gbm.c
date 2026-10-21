@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <gralloc_gbm_format.h>
+#include <gralloc_generic_format.h>
 #include <gralloc_gbm.h>
 
 #define LOG_TAG "gralloc_gbm"
