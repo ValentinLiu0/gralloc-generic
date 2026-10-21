@@ -537,6 +537,7 @@ AIMapper_Error GrallocGenericMapperV5::setStandardMetadata(buffer_handle_t _Nonn
 	LOG_V("type %s applied to buffer %p.",
 	      metadataTypeName.c_str(), buffer);
 
+	free(data);
 	return AIMAPPER_ERROR_NONE;
 }
 
