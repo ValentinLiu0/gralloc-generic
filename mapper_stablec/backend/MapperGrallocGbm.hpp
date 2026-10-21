@@ -23,12 +23,8 @@ public:
 	explicit MapperBackendGrallocGbm() = default;
 	virtual ~MapperBackendGrallocGbm() = default;
 
-	bool isReady() const override {
-		return is_gralloc_gbm_ready();
-	};
-	int init() override {
-		return gralloc_gbm_init();
-	};
+	bool isReady() const override;
+	int init() override;
 
 	int importBuffer(const native_handle_t* _Nonnull handle) override;
 	int freeBuffer(buffer_handle_t _Nonnull buffer) override;

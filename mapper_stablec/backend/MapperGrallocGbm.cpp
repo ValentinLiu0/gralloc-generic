@@ -14,6 +14,20 @@
 
 using namespace ::android::hardware::graphics::mapper;
 
+bool MapperBackendGrallocGbm::isReady() const
+{
+	bool ready = is_gralloc_gbm_ready();
+	LOG_V("Gralloc GBM backend ready: %d.", ready);
+	return ready;
+}
+
+int MapperBackendGrallocGbm::init()
+{
+	int ret = gralloc_gbm_init();
+	LOG_D("gralloc_gbm_init returned %d.", ret);
+	return ret;
+}
+
 int MapperBackendGrallocGbm::importBuffer(const native_handle_t* _Nonnull handle)
 {
 	return gralloc_gbm_android_buffer_import(handle);
