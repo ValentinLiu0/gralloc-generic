@@ -5,7 +5,9 @@
  */
 
 #include <drm/android/gralloc_handle.h>
+#include <errno.h>
 #include <hardware/gralloc.h>
+#include <string.h>
 #include <system/graphics.h>
 #include <BufferAllocator/BufferAllocator.h>
 
@@ -39,6 +41,8 @@ int AllocatorBackendDmaBuf::init()
 {
 	LOG_TRACE();
 	allocator = new BufferAllocator();
+	LOG_D("DMA-BUF allocator initialized (%zu heap(s) available).",
+	      allocator->GetDmabufHeapList().size());
 
 	return !!(allocator == nullptr);
 }
@@ -47,6 +51,7 @@ ndk::ScopedAStatus AllocatorBackendDmaBuf::allocate2(const BufferDescriptorInfo&
 							 AllocationResult* outResult)
 {
 	LOG_TRACE();
+	LOG_V("count=%d, desc: %s.", count, descriptor.toString().c_str());
 
 	LOG_D("new buffer allocating request: %s", descriptor.toString().c_str());
 	size_t buffer_size = descriptor.width * descriptor.height;
@@ -55,7 +60,8 @@ ndk::ScopedAStatus AllocatorBackendDmaBuf::allocate2(const BufferDescriptorInfo&
     
 	uint32_t drm_format = color_fmt_a2g(static_cast<uint32_t>(descriptor.format));
 	if (!drm_format)
-		LOG_W("Unsupported or unknown Android HAL format %u!", descriptor.format);
+		LOG_W("Unsupported or unknown Android HAL format %u!",
+		      static_cast<uint32_t>(descriptor.format));
 
 	uint32_t pitch_bytes = descriptor.width * color_bytes_per_pixel(drm_format);
 
@@ -63,20 +69,24 @@ ndk::ScopedAStatus AllocatorBackendDmaBuf::allocate2(const BufferDescriptorInfo&
 		native_handle_t *handle = gralloc_handle_create(descriptor.width, descriptor.height,
 								static_cast<int32_t>(descriptor.format),
 								static_cast<int32_t>(descriptor.usage));
+		if (!handle) {
+			LOG_E("gralloc_handle_create() failed (index=%d).", i);
+			return ToBinderStatus(AllocationError::NO_RESOURCES);
+		}
 		int fd = allocator->AllocSystem(true, buffer_size);
 		if (fd <= 0) {
-			LOG_E("allocate2 failed: allocate from system heap failed.");
+			LOG_E("Allocation from the system heap failed (ret=%d, size=%zu): %s",
+			      fd, buffer_size, strerror(errno));
+			native_handle_delete(handle);
 			return ToBinderStatus(AllocationError::NO_RESOURCES);
 		}
 		gralloc_handle(handle)->prime_fd = fd;
 		gralloc_handle(handle)->stride = pitch_bytes;
 		handles[i] = handle;
+		LOG_V("allocated handle #%d/%d at %p (fd=%d).", i, count, handle, fd);
 	}
 
-	for (int i = 0; i < count; i++) {
-		auto handle = handles[i];
-		LOG_D("new buffer (fd=%u) with count %d in request %p", gralloc_handle(handle)->prime_fd, i, &descriptor);
-	}
+	LOG_D("allocated %d buffer(s), stride=%u bytes.", count, pitch_bytes);
 
 	outResult->buffers.resize(count);
 	for (int32_t i = 0; i < count; i++) {
@@ -84,11 +94,13 @@ ndk::ScopedAStatus AllocatorBackendDmaBuf::allocate2(const BufferDescriptorInfo&
 			continue;
 		auto handle = handles[i];
 		outResult->buffers[i] = ::android::dupToAidl(handle);
+		LOG_D("Copy handle from %p to %p (index: %d).",
+		      handle, (void *) &outResult->buffers[i], i);
 		// Release buffer and handle
 		native_handle_close(handle);
 		native_handle_delete(handle);
 	}
-	outResult->stride = pitch_bytes / color_bytes_per_pixel(drm_format);;
+	outResult->stride = pitch_bytes / color_bytes_per_pixel(drm_format);
 
 	return ndk::ScopedAStatus::ok();
 }
@@ -96,23 +108,28 @@ ndk::ScopedAStatus AllocatorBackendDmaBuf::allocate2(const BufferDescriptorInfo&
 ndk::ScopedAStatus AllocatorBackendDmaBuf::isSupported(const BufferDescriptorInfo& descriptor, bool* outResult)
 {
 	LOG_TRACE();
+	LOG_V("Descriptor: %s.", descriptor.toString().c_str());
 
 	if (descriptor.format == PixelFormat::BLOB && descriptor.height == 1) {
 		*outResult = true;
+		LOG_V("Supported (1D BLOB).");
 		return ndk::ScopedAStatus::ok();
 	}
 
 	uint32_t usage = static_cast<uint32_t>(descriptor.usage);
 	if (usage & (GRALLOC_USAGE_HW_VIDEO_ENCODER | GRALLOC_USAGE_HW_IMAGE_ENCODER)) {
 		*outResult = true;
+		LOG_V("Supported (hardware encoder usage).");
 		return ndk::ScopedAStatus::ok();
 	}
 
 	if (usage & (GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN)) {
 		*outResult = true;
+		LOG_V("Supported (software access usage).");
 		return ndk::ScopedAStatus::ok();
 	}
 
 	*outResult = false;
+	LOG_V("Not supported.");
 	return ndk::ScopedAStatus::ok();
 }

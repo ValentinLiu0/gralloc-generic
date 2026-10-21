@@ -38,13 +38,16 @@ static const std::string STANDARD_METADATA_DATASPACE = "android.hardware.graphic
 int AllocatorBackendImpl::generateGrallocGenericDesc(const BufferDescriptorInfo& info, allocator_desc_t* outResult)
 {
 	LOG_TRACE();
+	LOG_V("Descriptor: %s", info.toString().c_str());
+
 	if (!outResult) {
-		LOG_E("generateGrallocGenericDesc failed: Invalid out pointer.");
+		LOG_E("Invalid out pointer.");
 		return -EINVAL;
 	}
 
 	if (info.width == 0 || info.height == 0) {
-		LOG_E("generateGrallocGenericDesc failed: Invalid buffer descriptor: width or height is zero");
+		LOG_E("Invalid buffer descriptor: width or height is zero (width=%u, height=%u)",
+		      static_cast<uint32_t>(info.width), static_cast<uint32_t>(info.height));
 		return -EINVAL;
 	}
 
@@ -53,7 +56,7 @@ int AllocatorBackendImpl::generateGrallocGenericDesc(const BufferDescriptorInfo&
 
 	// TODO: Add multiple layer support.
 	if (info.layerCount > 1) {
-		LOG_E("generateGrallocGenericDesc failed: Failed to convert descriptor. Unsupported layerCount: %d", info.layerCount);
+		LOG_E("Failed to convert descriptor. Unsupported layerCount: %d", info.layerCount);
 		return -EINVAL;
 	}
 
@@ -63,7 +66,13 @@ int AllocatorBackendImpl::generateGrallocGenericDesc(const BufferDescriptorInfo&
 	outResult->layer_count = static_cast<uint32_t>(info.layerCount);
 
 	outResult->name = (unsigned char *) calloc((info.name.size() + 1), sizeof(unsigned char));
+	if (!outResult->name) {
+		LOG_E("No memory for the buffer name.");
+		return -ENOMEM;
+	}
 	memcpy(outResult->name, info.name.data(), info.name.size());
+
+	LOG_V("Generated: %s", allocator_desc_to_string(outResult));
 
 	return 0;
 }
@@ -121,20 +130,23 @@ int GrallocGenericAllocatorV2::selectBackend(const BufferDescriptorInfo& descrip
 
 	backend = selectBackendByType(AllocatorBackendType::ALLOCATOR_GRALLOC_GBM);
 	backend->isSupported(descriptor, &supported);
+	LOG_V("Gralloc GBM backend supported=%d.", supported);
 	if (supported) {
-		LOG_D("Selected Gralloc GBM backend.");
+		LOG_D("Selected Gralloc GBM backend for desc: %s.", descriptor.toString().c_str());
 		mBackend = backend;
 		return 0;
 	}
 
 	backend = selectBackendByType(AllocatorBackendType::ALLOCATOR_GRALLOC_DMABUF);
 	backend->isSupported(descriptor, &supported);
+	LOG_V("DMA-BUF backend supported=%d.", supported);
 	if (supported) {
-		LOG_D("Selected DMA-BUF backend.");
+		LOG_D("Selected DMA-BUF backend for desc: %s.", descriptor.toString().c_str());
 		mBackend = backend;
 		return 0;
 	}
 
+	LOG_E("No backend supports the descriptor: %s.", descriptor.toString().c_str());
 	return -EINVAL;
 }
 
@@ -142,22 +154,35 @@ int GrallocGenericAllocatorV2::init(void)
 {
 	LOG_TRACE();
 
-	selectBackendByType(AllocatorBackendType::ALLOCATOR_GRALLOC_DMABUF)->init();
+	int ret = selectBackendByType(AllocatorBackendType::ALLOCATOR_GRALLOC_DMABUF)->init();
+	LOG_D("DMA-BUF backend init returned %d.", ret);
 
-	return selectBackendByType(AllocatorBackendType::ALLOCATOR_GRALLOC_GBM)->init();
+	ret = selectBackendByType(AllocatorBackendType::ALLOCATOR_GRALLOC_GBM)->init();
+	LOG_D("Gralloc GBM backend init returned %d.", ret);
+
+	return ret;
 }
 
 ndk::ScopedAStatus GrallocGenericAllocatorV2::allocate(const std::vector<uint8_t>& encodedDescriptor, int32_t count,
 						       allocator::AllocationResult* outResult)
 {
 	LOG_TRACE();
+	LOG_V("count=%d, encoded descriptor size=%zu.", count, encodedDescriptor.size());
 
 	BufferDescriptorInfoV4 mapperV4Descriptor;
 	int ret = ::android::gralloc4::decodeBufferDescriptorInfo(encodedDescriptor, &mapperV4Descriptor);
 	if (ret) {
-		LOG_E("allocate failed: call decodeBufferDescriptorInfo() failed, ret=%d.", ret);
+		LOG_E("Cannot decode the buffer descriptor, ret=%d.", ret);
 		return ToBinderStatus(AllocationError::BAD_DESCRIPTOR);
 	}
+
+	LOG_D("count=%d, desc {w=%u, h=%u, layers=%u, format=%d, usage=0x%llx}.",
+	      count,
+	      static_cast<uint32_t>(mapperV4Descriptor.width),
+	      static_cast<uint32_t>(mapperV4Descriptor.height),
+	      static_cast<uint32_t>(mapperV4Descriptor.layerCount),
+	      static_cast<int32_t>(mapperV4Descriptor.format),
+	      static_cast<unsigned long long>(mapperV4Descriptor.usage));
 
 	const BufferDescriptorInfo info = {
 		.name = {"auto_generated"},
@@ -176,6 +201,7 @@ ndk::ScopedAStatus GrallocGenericAllocatorV2::allocate2(const BufferDescriptorIn
 							allocator::AllocationResult* outResult)
 {
 	LOG_TRACE();
+	LOG_V("count=%d, desc: %s.", count, descriptor.toString().c_str());
 
 	selectBackend(descriptor);
 	CHECK_BACKEND();
@@ -187,10 +213,12 @@ ndk::ScopedAStatus GrallocGenericAllocatorV2::isSupported(const BufferDescriptor
 							  bool* outResult)
 {
 	LOG_TRACE();
+	LOG_V("Descriptor: %s.", descriptor.toString().c_str());
 
 	/* Deny all non-standard metadata options */
 	for (const auto& option : descriptor.additionalOptions) {
 		if (option.name != STANDARD_METADATA_DATASPACE) {
+			LOG_D("Rejecting non-standard metadata option '%s'.", option.name.c_str());
 			*outResult = false;
 			return ndk::ScopedAStatus::ok();
 		}
@@ -199,13 +227,16 @@ ndk::ScopedAStatus GrallocGenericAllocatorV2::isSupported(const BufferDescriptor
 	selectBackend(descriptor);
 	CHECK_BACKEND();
 
-	return mBackend->isSupported(descriptor, outResult);
+	ndk::ScopedAStatus status = mBackend->isSupported(descriptor, outResult);
+	LOG_V("result=%d.", *outResult);
+	return status;
 }
 
 ndk::ScopedAStatus GrallocGenericAllocatorV2::getIMapperLibrarySuffix(std::string* outResult)
 {
 	LOG_TRACE();
 	*outResult = "generic";
+	LOG_V("Returning IMapper library suffix: '%s'.", outResult->c_str());
 	return ndk::ScopedAStatus::ok();
 }
 

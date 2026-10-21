@@ -183,12 +183,15 @@ int GrallocGenericMapperV5::selectBackend(buffer_handle_t _Nonnull buffer)
 	LOG_TRACE();
 
 	std::shared_ptr<MapperBackendImpl> backend;
+	gralloc_handle_t *handle = gralloc_handle(buffer);
 
 	if (shouldUseDrmBackend(buffer)) {
-		LOG_D("Selected DMA-BUF backend.");
+		LOG_D("Selected DMA-BUF backend for handle %p (fd=%d, format=0x%x, usage=0x%x).",
+		      buffer, handle->prime_fd, handle->format, handle->usage);
 		backend = selectBackendByType(MapperBackendType::MAPPER_GRALLOC_DMABUF);
 	} else {
-		LOG_D("Selected Gralloc GBM backend.");
+		LOG_D("Selected Gralloc GBM backend for handle %p (fd=%d, format=0x%x, usage=0x%x).",
+		      buffer, handle->prime_fd, handle->format, handle->usage);
 		backend = selectBackendByType(MapperBackendType::MAPPER_GRALLOC_GBM);
 	}
 
@@ -199,25 +202,28 @@ int GrallocGenericMapperV5::selectBackend(buffer_handle_t _Nonnull buffer)
 AIMapper_Error GrallocGenericMapperV5::importBuffer(const native_handle_t* _Nonnull handle,
 						buffer_handle_t _Nullable* _Nonnull outBufferHandle)
 {
-	LOG_TRACE();    
+	LOG_TRACE();
 	if (!::is_native_handle_valid(handle)) {
-		LOG_E("importBuffer failed: invalid handle (%p).", handle);
+		LOG_E("invalid handle (%p).", handle);
 		return AIMAPPER_ERROR_BAD_BUFFER;
 	}
+	LOG_V("handle=%p (numFds=%d, numInts=%d).",
+	      handle, handle->numFds, handle->numInts);
 
 	selectBackend(handle);
 	CHECK_BACKEND();
 
 	native_handle_t *importedBufferHandle = native_handle_clone(handle);
 	if (!importedBufferHandle) {
-		LOG_E("importBuffer failed: handle clone failed");
+		LOG_E("native_handle_clone() failed for handle %p.", handle);
 		return AIMAPPER_ERROR_NO_RESOURCES;
 	}
+	LOG_D("Copy handle from %p to %p.", handle, importedBufferHandle);
 
 	if (mBackend->importBuffer((buffer_handle_t) importedBufferHandle) != 0) {
+		LOG_E("Backend operation failed for handle %p.", importedBufferHandle);
 		native_handle_close(importedBufferHandle);
 		native_handle_delete(importedBufferHandle);
-		LOG_E("importBuffer failed: Backend operation failed.");
 		return AIMAPPER_ERROR_NO_RESOURCES;
 	}
 
@@ -229,15 +235,16 @@ AIMapper_Error GrallocGenericMapperV5::freeBuffer(buffer_handle_t _Nonnull buffe
 {
 	LOG_TRACE();
 	if (!buffer) {
-		LOG_E("freeBuffer failed: invalid buffer (%p).", buffer);
+		LOG_E("invalid buffer (%p).", buffer);
 		return AIMAPPER_ERROR_BAD_BUFFER;
 	}
+	LOG_V("buffer=%p.", buffer);
 
 	selectBackend(buffer);
 	CHECK_BACKEND();
 
 	if (mBackend->freeBuffer(buffer) != 0) {
-		LOG_E("freeBuffer failed: Backend operation failed.");
+		LOG_E("Backend operation failed for buffer %p.", buffer);
 		return AIMAPPER_ERROR_NO_RESOURCES;
 	}
 
@@ -249,12 +256,14 @@ AIMapper_Error GrallocGenericMapperV5::getTransportSize(buffer_handle_t _Nonnull
 {
 	LOG_TRACE();
 	if (!buffer) {
-		LOG_E("getTransportSize failed: invalid buffer (%p).", buffer);
+		LOG_E("invalid buffer (%p).", buffer);
 		return AIMAPPER_ERROR_BAD_BUFFER;
 	}
 
 	*outNumFds = buffer->numFds;
 	*outNumInts = buffer->numInts;
+	LOG_V("buffer=%p, numFds=%u, numInts=%u.",
+	      buffer, *outNumFds, *outNumInts);
 	return AIMAPPER_ERROR_NONE;
 }
 
@@ -263,22 +272,27 @@ AIMapper_Error GrallocGenericMapperV5::lock(buffer_handle_t _Nonnull buffer, uin
 {
 	LOG_TRACE();
 	if (!buffer) {
-		LOG_E("lock failed: invalid buffer (%p).", buffer);
+		LOG_E("invalid buffer (%p).", buffer);
 		return AIMAPPER_ERROR_BAD_BUFFER;
 	}
 
 	if (cpuUsage == 0) {
-		LOG_E("lock failed: invalid usage.");
+		LOG_E("invalid usage.");
 		return AIMAPPER_ERROR_BAD_VALUE;
 	}
+	LOG_V("buffer=%p, cpuUsage=0x%llx, region=[%d,%d,%d,%d], acquireFence=%d.",
+	      buffer, (unsigned long long) cpuUsage,
+	      accessRegion.left, accessRegion.top, accessRegion.right, accessRegion.bottom,
+	      acquireFence);
 
 	selectBackend(buffer);
 	CHECK_BACKEND();
 
 	if (mBackend->lock(buffer, cpuUsage, accessRegion, acquireFence, outData) != 0) {
-		LOG_E("lock failed: Backend operation failed.");
+		LOG_E("Backend operation failed for buffer %p.", buffer);
 		return AIMAPPER_ERROR_NO_RESOURCES;
 	}
+	LOG_V("buffer=%p mapped at %p.", buffer, *outData);
 
 	return AIMAPPER_ERROR_NONE;
 }
@@ -287,15 +301,16 @@ AIMapper_Error GrallocGenericMapperV5::unlock(buffer_handle_t _Nonnull buffer, i
 {
 	LOG_TRACE();
 	if (!buffer) {
-		LOG_E("unlock failed: invalid buffer (%p).", buffer);
+		LOG_E("invalid buffer (%p).", buffer);
 		return AIMAPPER_ERROR_BAD_BUFFER;
 	}
+	LOG_V("buffer=%p.", buffer);
 
 	selectBackend(buffer);
 	CHECK_BACKEND();
 
 	if (mBackend->unlock(buffer, releaseFence) != 0) {
-		LOG_E("unlock failed: Backend operation failed.");
+		LOG_E("Backend operation failed for buffer %p.", buffer);
 		return AIMAPPER_ERROR_NO_RESOURCES;
 	}
 
@@ -305,12 +320,13 @@ AIMapper_Error GrallocGenericMapperV5::unlock(buffer_handle_t _Nonnull buffer, i
 AIMapper_Error GrallocGenericMapperV5::flushLockedBuffer(buffer_handle_t _Nonnull buffer)
 {
 	LOG_TRACE();
+	LOG_V("buffer=%p.", buffer);
 
 	selectBackend(buffer);
 	CHECK_BACKEND();
 
 	if (mBackend->flushLockedBuffer(buffer) != 0) {
-		LOG_E("flushLockedBuffer failed: Backend operation failed.");
+		LOG_E("Backend operation failed for buffer %p.", buffer);
 		return AIMAPPER_ERROR_NO_RESOURCES;
 	}
 	return AIMAPPER_ERROR_NONE;
@@ -319,12 +335,13 @@ AIMapper_Error GrallocGenericMapperV5::flushLockedBuffer(buffer_handle_t _Nonnul
 AIMapper_Error GrallocGenericMapperV5::rereadLockedBuffer(buffer_handle_t _Nonnull buffer)
 {
 	LOG_TRACE();
+	LOG_V("buffer=%p.", buffer);
 
 	selectBackend(buffer);
 	CHECK_BACKEND();
 
 	if (mBackend->rereadLockedBuffer(buffer) != 0) {
-		LOG_E("rereadLockedBuffer failed: Backend operation failed.");
+		LOG_E("Backend operation failed for buffer %p.", buffer);
 		return AIMAPPER_ERROR_NO_RESOURCES;
 	}
 	return AIMAPPER_ERROR_NONE;
@@ -347,14 +364,16 @@ int32_t GrallocGenericMapperV5::getMetadata(buffer_handle_t _Nonnull buffer, AIM
 {
 	LOG_TRACE();
 	if (!buffer) {
-		LOG_E("getMetadata failed: invalid buffer (%p).", buffer);
+		LOG_E("invalid buffer (%p).", buffer);
 		return AIMAPPER_ERROR_BAD_BUFFER;
 	}
+	LOG_V("buffer=%p, type=%s, data size=%zu.",
+	      buffer, metadataType.name, outDataSize);
 
 	if (is_standard_metadata(metadataType))
 		return getStandardMetadata(buffer, metadataType.value, outData, outDataSize);
 
-	LOG_E("getMetadata failed: Non-standard metadata (%s) is unsupported!", metadataType.name);
+	LOG_E("Non-standard metadata (%s) is unsupported!", metadataType.name);
 	return AIMAPPER_ERROR_UNSUPPORTED;
 }
 
@@ -363,21 +382,23 @@ int32_t GrallocGenericMapperV5::getStandardMetadata(buffer_handle_t _Nonnull buf
 {
 	LOG_TRACE();
 	if (!buffer) {
-		LOG_E("getStandardMetadata failed: invalid buffer (%p).", buffer);
+		LOG_E("invalid buffer (%p).", buffer);
 		return AIMAPPER_ERROR_BAD_BUFFER;
 	}
 	// Convert the int64_t to StandardMetadataType enum and get readable name
 	StandardMetadataType metadataTypeEnum = static_cast<StandardMetadataType>(standardMetadataType);
 	std::string metadataTypeName = toString(metadataTypeEnum);
 
-	LOG_V("get standard metadata %s", metadataTypeName.c_str());
+	LOG_V("buffer=%p, type=%s, data size=%zu.",
+	      buffer, metadataTypeName.c_str(), outDataSize);
 
 	selectBackend(buffer);
 	CHECK_BACKEND();
 
 	int32_t result = mBackend->getStandardMetadata(buffer, standardMetadataType, outData, outDataSize);
 	if (result < 0) {
-		LOG_E("getStandardMetadata failed: Backend operation failed.");
+		LOG_E("Backend operation failed for type %s.",
+		      metadataTypeName.c_str());
 		return AIMAPPER_ERROR_NO_RESOURCES;
 	}
 
@@ -389,14 +410,16 @@ AIMapper_Error GrallocGenericMapperV5::setMetadata(buffer_handle_t _Nonnull buff
 {
 	LOG_TRACE();
 	if (!buffer) {
-		LOG_E("setMetadata failed: invalid buffer (%p).", buffer);
+		LOG_E("invalid buffer (%p).", buffer);
 		return AIMAPPER_ERROR_BAD_BUFFER;
 	}
+	LOG_V("buffer=%p, type=%s, metadata size=%zu.",
+	      buffer, metadataType.name, metadataSize);
 
 	if (is_standard_metadata(metadataType))
 		return setStandardMetadata(buffer, metadataType.value, metadata, metadataSize);
 
-	LOG_E("setMetadata failed: Non-standard metadata (%s) is unsupported!", metadataType.name);
+	LOG_E("Non-standard metadata (%s) is unsupported!", metadataType.name);
 	return AIMAPPER_ERROR_UNSUPPORTED;
 }
 
@@ -406,7 +429,7 @@ AIMapper_Error GrallocGenericMapperV5::setStandardMetadata(buffer_handle_t _Nonn
 {
 	LOG_TRACE();
 	if (!buffer) {
-		LOG_E("setStandardMetadata failed: invalid buffer (%p).", buffer);
+		LOG_E("invalid buffer (%p).", buffer);
 		return AIMAPPER_ERROR_BAD_BUFFER;
 	}
 
@@ -417,11 +440,12 @@ AIMapper_Error GrallocGenericMapperV5::setStandardMetadata(buffer_handle_t _Nonn
 	StandardMetadataType metadataTypeEnum = static_cast<StandardMetadataType>(standardMetadataType);
 	std::string metadataTypeName = toString(metadataTypeEnum);
 
-	LOG_V("set standard metadata %s (size: %zu)", metadataTypeName.c_str(), metadataSize);
+	LOG_V("buffer=%p, type=%s, metadata size=%zu.",
+	      buffer, metadataTypeName.c_str(), metadataSize);
 
 	buffer_metadata_t *data = (buffer_metadata_t *) calloc(1, sizeof(buffer_metadata_t));
 	if (!data) {
-		LOG_E("setStandardMetadata failed: no memory");
+		LOG_E("no memory");
 		return AIMAPPER_ERROR_NO_RESOURCES;
 	}
 
@@ -436,15 +460,19 @@ AIMapper_Error GrallocGenericMapperV5::setStandardMetadata(buffer_handle_t _Nonn
         case StandardMetadataType::PIXEL_FORMAT_MODIFIER:
         case StandardMetadataType::USAGE:
         case StandardMetadataType::STRIDE:
-		LOG_E("setStandardMetadata failed: Read-only metadata type (%s).", metadataTypeName.c_str());
+		LOG_E("Read-only metadata type (%s).", metadataTypeName.c_str());
 		return AIMAPPER_ERROR_BAD_VALUE;
 	case StandardMetadataType::DATASPACE:
 		data->dataspace = static_cast<int32_t>(*(Dataspace *)metadata);
-		LOG_V("set DATASPACE to %d, received %d (%s)", data->dataspace, *(Dataspace *)metadata, toString(*(Dataspace *)metadata).c_str());
+		LOG_V("set DATASPACE to %d, received %d (%s)", data->dataspace,
+		      static_cast<int32_t>(*(Dataspace *)metadata),
+		      toString(*(Dataspace *)metadata).c_str());
 		break;
 	case StandardMetadataType::BLEND_MODE:
 		data->blend_mode = static_cast<int32_t>(*(BlendMode *)metadata);
-		LOG_V("set BLEND_MODE to %d, received %d (%s)", data->blend_mode, *(BlendMode *)metadata, toString(*(BlendMode *)metadata).c_str());
+		LOG_V("set BLEND_MODE to %d, received %d (%s)", data->blend_mode,
+		      static_cast<int32_t>(*(BlendMode *)metadata),
+		      toString(*(BlendMode *)metadata).c_str());
 		break;
 	case StandardMetadataType::SMPTE2086:
 		{
@@ -494,16 +522,20 @@ AIMapper_Error GrallocGenericMapperV5::setStandardMetadata(buffer_handle_t _Nonn
 		break;
 	case StandardMetadataType::SMPTE2094_40:
 	case StandardMetadataType::SMPTE2094_10:
-		LOG_W("known but not implemented metadata type(%s).", metadataTypeName.c_str());
+		LOG_D("Known but not implemented metadata type (%s).",
+		      metadataTypeName.c_str());
 		break;
 	default:
-		LOG_D("unsupported metadata type (%s).", metadataTypeName.c_str());
+		LOG_D("Unsupported metadata type (%s).", metadataTypeName.c_str());
 	}
 
 	if (mBackend->setStandardMetadata(buffer, standardMetadataType, data) != 0) {
-		LOG_E("setStandardMetadata failed: Backend operation failed.");
+		LOG_E("Backend operation failed for type %s.",
+		      metadataTypeName.c_str());
 		return AIMAPPER_ERROR_NO_RESOURCES;
 	}
+	LOG_V("type %s applied to buffer %p.",
+	      metadataTypeName.c_str(), buffer);
 
 	return AIMAPPER_ERROR_NONE;
 }
@@ -541,6 +573,7 @@ AIMapper_Error GrallocGenericMapperV5::listSupportedMetadataTypes(const AIMapper
 	LOG_TRACE();
 	*outDescriptionList = sSupportedMetadataTypes.data();
 	*outNumberOfDescriptions = sSupportedMetadataTypes.size();
+	LOG_V("%zu type(s).", *outNumberOfDescriptions);
 
 	return AIMAPPER_ERROR_NONE;
 }
@@ -551,13 +584,16 @@ AIMapper_Error GrallocGenericMapperV5::dumpBuffer(buffer_handle_t _Nonnull buffe
 {
 	LOG_TRACE();
 	if (!bufferHandle) {
-		LOG_E("dumpBuffer failed: invalid buffer (%p).", bufferHandle);
+		LOG_E("invalid buffer (%p).", bufferHandle);
 		return AIMAPPER_ERROR_BAD_BUFFER;
 	}
 
 	auto callback = [&](AIMapper_MetadataType type, const std::vector<uint8_t>& buffer) {
 		dumpBufferCallback(context, type, buffer.data(), buffer.size());
 	};
+
+	LOG_D("dumping is not implemented, no metadata will be reported for buffer %p.",
+	      bufferHandle);
 
 	return AIMAPPER_ERROR_NONE;
 }
@@ -573,6 +609,8 @@ AIMapper_Error GrallocGenericMapperV5::dumpAllBuffers(AIMapper_BeginDumpBufferCa
 		dumpBufferCallback(context, type, buffer.data(), buffer.size());
 	};
 
+	LOG_D("dumping is not implemented, no buffers will be reported.");
+
 	return AIMAPPER_ERROR_NONE;
 }
 
@@ -583,13 +621,13 @@ AIMapper_Error GrallocGenericMapperV5::getReservedRegion(buffer_handle_t _Nonnul
 {
 	LOG_TRACE();
 	if (!buffer) {
-		LOG_E("getReservedRegion failed: invalid buffer (%p).", buffer);
+		LOG_E("invalid buffer (%p).", buffer);
 		return AIMAPPER_ERROR_BAD_BUFFER;
 	}
 
 	*outReservedRegion = nullptr;
 	*outReservedSize = 0;
-	LOG_W("We currently not support reserved region.");
+	LOG_D("reserved regions are not supported, returning an empty region.");
 	return AIMAPPER_ERROR_NONE;
 }
 
@@ -598,6 +636,7 @@ extern "C" uint32_t ANDROID_HAL_MAPPER_VERSION = AIMAPPER_VERSION_5;
 extern "C" AIMapper_Error AIMapper_loadIMapper(AIMapper* _Nullable* _Nonnull outImplementation) {
 	LOG_TRACE();
 	assert(outImplementation);
+	LOG_V("Loading IMapper implementation, version=%u.", ANDROID_HAL_MAPPER_VERSION);
 
 	static vendor::mapper::IMapperProvider<GrallocGenericMapperV5> provider;
 	return provider.load(outImplementation);

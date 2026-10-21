@@ -13,21 +13,26 @@
 
 bool AllocatorBackendGrallocGbm::isReady() const
 {
-	return is_gralloc_gbm_ready();
+	bool ready = is_gralloc_gbm_ready();
+	LOG_V("Backend ready: %d.", ready);
+	return ready;
 }
 
 int AllocatorBackendGrallocGbm::init()
 {
-	return gralloc_gbm_init();
+	int ret = gralloc_gbm_init();
+	LOG_D("gralloc_gbm_init returned %d.", ret);
+	return ret;
 }
 
 ndk::ScopedAStatus AllocatorBackendGrallocGbm::grallocGbmAllocate(allocator_desc_t& desc, int32_t count, 
 								  AllocationResult* outResult)
 {
 	LOG_TRACE();
+	LOG_V("count=%d, desc: %s.", count, allocator_desc_to_string(&desc));
 
 	if (!gralloc_gbm_is_allocator_desc_supported(&desc)) {
-		LOG_E("grallocGbmAllocate failed: Unsupported allocator desc: %s", allocator_desc_to_string(&desc));
+		LOG_E("Unsupported allocator desc: %s", allocator_desc_to_string(&desc));
 		return ToBinderStatus(AllocationError::UNSUPPORTED);
 	}
 
@@ -40,7 +45,8 @@ ndk::ScopedAStatus AllocatorBackendGrallocGbm::grallocGbmAllocate(allocator_desc
 		uint32_t gbm_stride = 0;
 		int ret = gralloc_gbm_android_buffer_new(&desc, &gbm_stride, &handle);
 		if (ret || !handle) {
-			LOG_E("grallocGbmAllocate failed: GBM operation failed, ret=%d", ret);
+			LOG_E("gralloc_gbm_android_buffer_new() returned %d, handle=%p.",
+			      ret, handle);
 			for (int32_t j = 0; j < i; j++) {
 				// Release all buffer and handle
 				if (!handles[j])
@@ -53,7 +59,11 @@ ndk::ScopedAStatus AllocatorBackendGrallocGbm::grallocGbmAllocate(allocator_desc
 		}
 		handles[i] = handle;
 		pixel_stride = gralloc_gbm_calculate_android_pixel_stride(desc.format, gbm_stride);
+		LOG_V("allocated handle #%d/%d at %p (gbm_stride=%u).",
+		      i, count, handle, gbm_stride);
 	}
+
+	LOG_D("Allocated %d buffer(s), pixel stride=%d.", count, pixel_stride);
 
 	outResult->buffers.resize(count);
 	for (int32_t i = 0; i < count; i++) {
@@ -61,6 +71,8 @@ ndk::ScopedAStatus AllocatorBackendGrallocGbm::grallocGbmAllocate(allocator_desc
 			continue;
 		auto handle = handles[i];
 		outResult->buffers[i] = ::android::dupToAidl(handle);
+		LOG_D("Copy handle from %p to %p (index: %d).",
+		      handle, (void *) &outResult->buffers[i], i);
 		// Release buffer and handle
 		gralloc_gbm_android_buffer_free(handle);
 		native_handle_close(handle);
@@ -74,10 +86,12 @@ ndk::ScopedAStatus AllocatorBackendGrallocGbm::grallocGbmAllocate(allocator_desc
 ndk::ScopedAStatus AllocatorBackendGrallocGbm::allocate2(const BufferDescriptorInfo& descriptor, int32_t count,
 							 AllocationResult* outResult)
 {
+	LOG_V("count=%d, desc: %s.", count, descriptor.toString().c_str());
+
 	allocator_desc_t grallocGbmDesc = {};
 	int status = generateGrallocGenericDesc(descriptor, &grallocGbmDesc);
 	if (status != 0) {
-		LOG_E("allocate2 failed: Failed to convert the request buffer desc to Gralloc GBM desc.\n");
+		LOG_E("Failed to convert the request buffer desc to Gralloc GBM desc.");
 		return ToBinderStatus(AllocationError::UNSUPPORTED);
 	}
 
@@ -86,7 +100,10 @@ ndk::ScopedAStatus AllocatorBackendGrallocGbm::allocate2(const BufferDescriptorI
 
 ndk::ScopedAStatus AllocatorBackendGrallocGbm::isSupported(const BufferDescriptorInfo& descriptor, bool* outResult)
 {
+	LOG_V("Descriptor: %s.", descriptor.toString().c_str());
+
 	if (descriptor.format == PixelFormat::BLOB) {
+		LOG_V("BLOB format is not supported by the Gralloc GBM backend.");
 		*outResult = false;
 		return ndk::ScopedAStatus::ok();
 	}
@@ -97,11 +114,12 @@ ndk::ScopedAStatus AllocatorBackendGrallocGbm::isSupported(const BufferDescripto
 	allocator_desc_t grallocGbmDesc = {};
 	int status = generateGrallocGenericDesc(descriptor, &grallocGbmDesc);
 	if (status != 0) {
-		LOG_E("isSupported failed: Failed to convert the request buffer desc to Gralloc GBM desc.\n");
+		LOG_E("Failed to convert the request buffer desc to Gralloc GBM desc.");
 		return ToBinderStatus(AllocationError::UNSUPPORTED);
 	}
-	
+
 	*outResult = gralloc_gbm_is_allocator_desc_supported(&grallocGbmDesc);
+	LOG_V("result=%d.", *outResult);
 
 	return ndk::ScopedAStatus::ok();
 }
