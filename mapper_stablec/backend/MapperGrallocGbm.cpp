@@ -193,7 +193,7 @@ int32_t grallocGbmQueryAndroidBufferMetadata(buffer_handle_t handle, F&& provide
 		return provide(static_cast<BlendMode>(info.metadata.dataspace));
 	}
 	if constexpr (metadataType == StandardMetadataType::SMPTE2086) {
-		std::optional<Smpte2086> smpte2086;
+		std::optional<Smpte2086> smpte2086{std::in_place};
 		smpte2086->primaryRed = XyColor(info.metadata.smpte2086->primary_red_x, info.metadata.smpte2086->primary_red_y);
 		smpte2086->primaryGreen = XyColor(info.metadata.smpte2086->primary_green_x, info.metadata.smpte2086->primary_green_y);
 		smpte2086->primaryBlue = XyColor(info.metadata.smpte2086->primary_blue_x, info.metadata.smpte2086->primary_blue_y);
@@ -203,7 +203,7 @@ int32_t grallocGbmQueryAndroidBufferMetadata(buffer_handle_t handle, F&& provide
 		return provide(smpte2086);
 	}
 	if constexpr (metadataType == StandardMetadataType::CTA861_3) {
-		std::optional<Cta861_3> cta861_3;
+		std::optional<Cta861_3> cta861_3{std::in_place};
 		cta861_3->maxContentLightLevel = info.metadata.cta861_3->max_content_light_level;
 		cta861_3->maxFrameAverageLightLevel = info.metadata.cta861_3->max_frame_average_light_level;
 		return provide(cta861_3);
