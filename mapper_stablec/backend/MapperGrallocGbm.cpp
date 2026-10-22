@@ -190,7 +190,7 @@ int32_t grallocGbmQueryAndroidBufferMetadata(buffer_handle_t handle, F&& provide
 		return provide(static_cast<Dataspace>(info.metadata.dataspace));
 	}
 	if constexpr (metadataType == StandardMetadataType::BLEND_MODE) {
-		return provide(static_cast<BlendMode>(info.metadata.dataspace));
+		return provide(static_cast<BlendMode>(info.metadata.blend_mode));
 	}
 	if constexpr (metadataType == StandardMetadataType::SMPTE2086) {
 		std::optional<Smpte2086> smpte2086{std::in_place};
