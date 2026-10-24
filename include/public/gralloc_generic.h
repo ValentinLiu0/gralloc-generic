@@ -7,6 +7,8 @@
 #ifndef GRALLOC_GENERIC_H
 #define GRALLOC_GENERIC_H
 
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #define GRALLOC_GENERIC_SMPTE2094_50_MAX_SIZE (1024 * 10)
@@ -34,9 +36,22 @@ typedef struct gralloc_generic_allocator_buffer_descriptor {
  */
 typedef gralloc_generic_allocator_buffer_descriptor_t allocator_desc_t;
 
+/**
+ * Format an allocator descriptor into a human-readable string.
+ *
+ * The returned pointer refers to a thread-local buffer, so concurrent calls
+ * from different binder threads cannot overwrite each other's result. The
+ * string stays valid until the next call from the same thread.
+ */
 static inline const char *allocator_desc_to_string(const allocator_desc_t *desc)
 {
-	static char buf[256];
+#ifdef __cplusplus
+	static thread_local char buf[256];
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+	static _Thread_local char buf[256];
+#else
+	static __thread char buf[256]; /* GNU extension for pre-C11 compilers */
+#endif
 
 	if (desc == NULL) {
 		return "(null)";
